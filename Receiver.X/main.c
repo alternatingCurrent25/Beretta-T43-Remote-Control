@@ -73,26 +73,11 @@
 #define VOLDWN 0xE0E0D02F 
 #define PWRSW 0xE0E040BF
 
-//typedef union {
-//  struct
-//  {
-//    uint8_t input_level                : 1;
-//    uint8_t start                      : 1;
-//    uint8_t zero_start                 : 1;
-//    uint8_t datalow                    : 1;
-//    uint8_t unused                     : 4;
-//  };
-//  uint8_t byte;
-//} Dataflag;
-//
-//Dataflag dataflag;
-
+uint8_t state = 0, i = 31, data_complete = 0;
 uint16_t time; 
-uint8_t state = 0; 
-uint8_t i = 31;
-uint8_t data_complete = 0;
 uint32_t data = 0;
 
+// initialize timer 1
 void init_timer(void){  
     T1CONbits.TON = 0;   // Disable Timer1
     T1CONbits.TCS = 0;   // Select internal clock source
@@ -105,22 +90,28 @@ void init_timer(void){
     IEC0bits.T1IE = 1;  // enable interrupt
     IPC0bits.T1IP = 0b100;  // set interrupt priority
 }
-    
+
+// returns time of timer 1
 uint16_t get_time(void){
     return (TMR1 / 4);
 }
 
+// sets timer 1 
 void set_timer(uint16_t time){
-    TMR1 = time;
+    TMR1 = (time*4);
 }
 
+// sets bit i of data to 1
 void set_bit(uint8_t i){
     data = data | ((uint32_t)1 << i);
 }
 
+// sets bit i of data to 0
 void clear_bit(uint8_t i){
     data = data & ~((uint32_t)1 << i);
 }
+
+// 
 void process_data(void){
     return;
 }
@@ -153,72 +144,75 @@ void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void){
     
     if(state != 0){
         time = get_time();                         // Store Timer1 value
-        set_timer(0);                               // Reset Timer1
+        set_timer(0);                              // Reset Timer1
     }
     
     IFS1bits.CNIF = 0;
     
     switch(state){
         
-        case 0 :                                     // Start receiving IR data (we're at the beginning of 9ms pulse)
-            T1CONbits.TON = 1;   // Enable Timer1 module with internal clock source and prescaler = 2
-            set_timer(0);                             // Reset Timer1 value
-            state = 1;                            
+        case 0 :                 // Start receiving IR data
+            T1CONbits.TON = 1;   // start Timer1 
+            set_timer(0);        // Reset Timer1 value
+            state = 1;           // go to state 1              
             i = 0;
             return;
             
-        case 1 :                                     // End of 9ms pulse
-            if((time > 5000) || (time < 4000)){        // Invalid interval ==> stop decoding and reset
-                state = 0;                           // Reset decoding process
-                T1CONbits.TON = 0;              // Stop Timer1 module
+        case 1 :                                     // expected 4.5ms pulse
+            if((time > 5000) || (time < 4000)){      // Invalid interval ==> stop decoding and reset
+                state = 0;                      // go back to state 0
+                T1CONbits.TON = 0;              // Stop Timer1 
             }
             else{
-                state = 2;  // Next state: end of 4.5ms space (start of 560탎 pulse)
+                state = 2;  // first 4.5ms pulse received, go to state 2
             }
             return;
             
-        case 2 :                                     // End of 4.5ms space
-            if((time > 5000) || (time < 4000)){        // Invalid interval ==> stop decoding and reset
-                state = 0;                           // Reset decoding process
-                T1CONbits.TON = 0;              // Stop Timer1 module
+        case 2 :                                     // expected 4.5ms space
+            if((time > 5000) || (time < 4000)){      // Invalid interval ==> stop decoding and reset
+                state = 0;                      // go back to state 0
+                T1CONbits.TON = 0;              // Stop Timer1 
                 return;
             }
-            state = 3;                             // Next state: end of 560탎 pulse (start of 560탎 or 1680탎 space)
+            state = 3;                             // Second 4.5ms space, go to state 3
             return;
             
-        case 3 :                                     // End of 560탎 pulse
-            if((time > 700) || (time < 400)){          // Invalid interval ==> stop decoding and reset
-                state = 0;                           // Reset decoding process
-                T1CONbits.TON = 0;              // Disable Timer1 module
+        case 3 :                                     // expected 560탎 pulse
+            if((time > 700) || (time < 400)){        // Invalid interval ==> stop decoding and reset
+                state = 0;                      // go back to state 0
+                T1CONbits.TON = 0;              // Disable Timer1 
             }
             else{
-                state = 4;                           // Next state: end of 560탎 or 1680탎 space
+                state = 4;                       // 560탎 pulse received, go to state 4
             }
             return;
             
-        case 4 :                                     // End of 560탎 or 1680탎 space
-            if((time > 1800) || (time < 400)){         // Invalid interval ==> stop decoding and reset
-                state = 0;                           // Reset decoding process
-                T1CONbits.TON = 0;              // Disable Timer1 module
+        case 4 :                                     // expected 560탎 or 1680탎 space
+            if((time > 1800) || (time < 400)){       // Invalid interval ==> stop decoding and reset
+                state = 0;                      // go back to state 0
+                T1CONbits.TON = 0;              // Disable Timer1 
                 return;
             }
         
-            if( time > 1000){                         // If space width > 1ms (short space)
+            if( time > 1000){                     // If space width > 1ms (1680us space)
                 set_bit((31 - i));                // Write 1 to bit (31 - i)
             }
-            else{                                     // If space width < 1ms (long space)
-                clear_bit((31 - i));           // Write 0 to bit (31 - i)
+            else{                                 // If space width < 1ms (560us space)
+                clear_bit((31 - i));              // Write 0 to bit (31 - i)
             }
             
-            i++;
+            i++;    // increment i
             
-            if(i > 31){                                // If all bits are received
-                data_complete = 1;                             // Decoding process OK
+            if(i > 31){            // if all bits are received, mark data as complete
+                data_complete = 1;                    
             }
-            state = 3;                             // Next state: end of 560탎 pulse (start of 560탎 or 1680탎 space)
+            
+            state = 3;             // go to state 3 to receive next bit
+            return;
   }
 }
 
+// interrupt happens when timer hits 5ms: receiver is idle, reset state to 0 
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void)
 {
     state = 0;

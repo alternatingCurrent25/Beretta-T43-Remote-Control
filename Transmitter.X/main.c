@@ -75,12 +75,18 @@
 #define PWRSW 0xE0E040BF
 
 void init_timer(void){
-    // Timer 1 config bits - Used for Data
-    IEC0bits.T1IE = 1;
-    T1CONbits.TSIDL = 0;
-    T1CONbits.TCS = 0;
-    IPC0bits.T1IP = 0b100;
+    // Timer 1 config bits   
+    T1CONbits.TON = 0;   // Disable Timer1
+    T1CONbits.TCS = 0;   // Select internal clock source
+    T1CONbits.TCKPS = 0b00; // Set prescaler to 1:1
+    T1CONbits.TGATE = 0; // Disable gated time accumulation
+    T1CONbits.TSIDL = 0; // Continue operation in idle mode
+    T1CONbits.TSYNC = 0; // Do not synchronize external clock input
+    
+    IEC0bits.T1IE = 1;  // enable interrupt
+    IPC0bits.T1IP = 0b100;  // set interrupt priority
 }
+
 //delay in us
 void delay_us(uint16_t time_us)
 {
@@ -99,6 +105,7 @@ void delay_ms(uint16_t time_ms){
     NewClk(8);
 }
 
+//sends start bit
 void start_bit(void){
     LATBbits.LATB4 = 1; 
     delay_us(4500);
@@ -106,6 +113,7 @@ void start_bit(void){
     delay_us(4500);
 }
 
+//sends a zero bit
 void zero_bit(void){
     LATBbits.LATB4 = 1;  
     delay_us(560);
@@ -113,6 +121,7 @@ void zero_bit(void){
     delay_us(560);
 }
 
+//sends a 1 bit
 void one_bit(void){
     LATBbits.LATB4 = 1;  
     delay_us(560);
@@ -157,10 +166,12 @@ int main(void) {
     return 0;
 }
 
+// cn interrupt function
 void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void){
 
 }
 
+// timer1 interrupt function
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void)
 {
     T1CONbits.TON = 0;
