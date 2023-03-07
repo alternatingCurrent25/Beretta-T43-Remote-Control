@@ -70,13 +70,9 @@
 
 // Signals
 #define LEFT    0xE0E068B7
-#define NLEFT   0xE0E066B7
 #define RIGHT   0xE0E068F7 
-#define NRIGHT  0xE0E066F7
 #define UP      0xE0E0F01F 
-#define NUP     0xE0E0FF1F 
 #define DOWN    0xE0E0E62F 
-#define NDOWN   0xE0E0E82F 
 #define SAFETY  0xE0E080BF
 
 // Buttons
@@ -86,20 +82,13 @@
 #define B4 PORTAbits.RA6
 #define B5 PORTBbits.RB12
 
-uint8_t b1_state = 1;
-uint8_t b2_state = 1;
-uint8_t b3_state = 1;
-uint8_t b4_state = 1;
-uint8_t b5_state = 1;
-
-uint8_t state_change = 0;
-
+// init buttons
 void init_buttons(void){
-    CNEN2bits.CN23IE = 1; 
-    CNEN2bits.CN22IE = 1; 
-    CNEN2bits.CN21IE = 1;
-    CNEN1bits.CN8IE  = 1;
-    CNEN1bits.CN14IE = 1;
+//    CNEN2bits.CN23IE = 1; 
+//    CNEN2bits.CN22IE = 1; 
+//    CNEN2bits.CN21IE = 1;
+//    CNEN1bits.CN8IE  = 1;
+//    CNEN1bits.CN14IE = 1;
     
     CNPU2bits.CN23PUE = 1;
     CNPU2bits.CN22PUE = 1;
@@ -107,17 +96,18 @@ void init_buttons(void){
     CNPU1bits.CN8PUE = 1;
     CNPU1bits.CN14PUE = 1;
     
-    IEC1bits.CNIE = 1;
-    
+//    IEC1bits.CNIE = 1;
+//    IPC4bits.CNIP = 0b111;
     TRISBbits.TRISB4 = 1;
     TRISBbits.TRISB4 = 1;
     TRISBbits.TRISB4 = 1;
     TRISBbits.TRISB4 = 1;
     TRISBbits.TRISB4 = 1;
     
-    IPC4bits.CNIP = 0b111;
+ 
 }
 
+// init timer 1
 void init_timer(void){
     // Timer 1 config bits   
     T1CONbits.TON = 0;   // Disable Timer1
@@ -131,12 +121,9 @@ void init_timer(void){
     IPC0bits.T1IP = 0b110;  // set interrupt priority
 }
 
-volatile unsigned int timer_count = 0;
 //delay in us
 void delay_us(uint16_t time_us)
 {
-    timer_count = 0;
-    
     //NewClk(8);
     PR1 = time_us * 4;
     T1CONbits.TON = 1;
@@ -145,7 +132,6 @@ void delay_us(uint16_t time_us)
 
 //delay in ms (max delay: 260 ms)
 void delay_ms(uint16_t time_ms){
-    timer_count = 0;
     NewClk(500);
     PR1 = time_ms * 250;
     T1CONbits.TON = 1;
@@ -177,6 +163,7 @@ void one_bit(void){
     delay_us(1690);
 }
 
+// Send a signal on the RF transmitter
 void send_signal(uint32_t number){
    
     uint8_t i = 0;   // Aux variable
@@ -196,61 +183,6 @@ void send_signal(uint32_t number){
     zero_bit(); // end bit
 }
 
-void update_states(void){
-    
-     // Button 5 is pressed
-    if (B5 == 0) {
-        send_signal(SAFETY); // Send message indicating button 5 is being pressed
-    } 
-
-    if (B1 != b1_state) {
-        // Button 1 state has changed
-        b1_state = B1;
-        if (b1_state == 0) {
-            // Button 1 is being pressed
-            send_signal(LEFT); // Send message indicating button 1 is being pressed
-        } else {
-            // Button 1 is released
-            send_signal(NLEFT); // Send message indicating button 1 is released
-        }
-    }
-    if (B2 != b2_state) {
-        // Button 2 state has changed
-        b2_state = B2;
-        if (b2_state == 0) {
-            // Button 2 is being pressed
-            send_signal(RIGHT); // Send message indicating button 2 is being pressed
-        } else {
-            // Button 2 is released
-            send_signal(NRIGHT); // Send message indicating button 2 is released
-        }
-    }
-    if (B3 != b3_state) {
-        // Button 3 state has changed
-        b3_state = B3;
-        if (b3_state == 0) {
-            // Button 3 is being pressed
-            send_signal(UP); // Send message indicating button 3 is being pressed
-        } else {
-            // Button 3 is released
-            send_signal(NUP); // Send message indicating button 3 is released
-        }
-    } 
-    if (B4 != b4_state) {
-        // Button 4 state has changed
-        b4_state = B4;
-        if (b4_state == 0) {
-            // Button 4 is being pressed
-            send_signal(DOWN); // Send message indicating button 4 is being pressed
-        } else {
-            // Button 4 is released
-            send_signal(NDOWN); // Send message indicating button 4 is released
-        }
-    }
-    
-    state_change = 0;
-}
-
 int main(void) {
     
     // Analog ports to digital
@@ -264,39 +196,36 @@ int main(void) {
     init_timer();
     init_buttons();
     
-    TRISAbits.TRISA4 = 0;
+    // set B4 as input for the RF transmitter 
     TRISBbits.TRISB4 = 0;
      
     while(1) {
-//        if (state_change){
-//            update_states();   
-//        }
-//    
+        
         while(B1 == 0 || B2 == 0 || B3 == 0 || B4 == 0 || B5 == 0)
         {
             if (B1 == 0){
                 send_signal(LEFT);
-                delay_us(1000);
+                delay_us(5000);
             }
             
             if (B2 == 0){
                 send_signal(RIGHT);
-                delay_us(1000);
+                delay_us(5000);
             }
             
             if (B3 == 0){
                 send_signal(UP);
-                delay_us(1000);
+                delay_us(5000);
             }
             
             if (B4 == 0){
                 send_signal(DOWN);
-                delay_us(1000);
+                delay_us(5000);
             }
             
             if (B5 == 0){
                 send_signal(SAFETY);
-                delay_us(1000);
+                delay_us(5000);
             }
             
             delay_us(5000);
@@ -309,16 +238,9 @@ int main(void) {
 // timer1 interrupt function
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void)
 {
-
     IFS0bits.T1IF=0; //Clear timer 2 interrupt flag
     T1CONbits.TON=0;
-    timer_count++;
-    
 }
 
-void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void){
-    state_change = 1;
-    IFS1bits.CNIF = 0;
-}
     
   

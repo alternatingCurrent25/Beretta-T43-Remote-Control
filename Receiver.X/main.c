@@ -70,13 +70,9 @@
 
 // Signals
 #define LEFT    0xE0E068B7
-#define NLEFT   0xE0E066B7
 #define RIGHT   0xE0E068F7 
-#define NRIGHT  0xE0E066F7
 #define UP      0xE0E0F01F 
-#define NUP     0xE0E0FF1F 
 #define DOWN    0xE0E0E62F 
-#define NDOWN   0xE0E0E82F 
 #define SAFETY  0xE0E080BF
 
 // LCD Pins
@@ -88,7 +84,7 @@
 #define DB6 LATBbits.LATB13
 #define DB7 LATBbits.LATB14
 
-uint8_t state = 0, i = 31, data_complete = 0;
+uint8_t state = 0, i = 31, data_complete = 0, count = 0;
 uint16_t time; 
 uint32_t data = 0;
 
@@ -105,7 +101,6 @@ uint8_t previous_right_state = 0;
 uint8_t signal_received = 0;
 uint8_t timeout_reached = 0;
 
-volatile unsigned int timer3_count = 0;
 void init_timer3(void){  
     T3CONbits.TON = 0;   // Disable Timer1
     T3CONbits.TCS = 0;   // Select internal clock source
@@ -114,7 +109,7 @@ void init_timer3(void){
     T3CONbits.TSIDL = 0; // Continue operation in idle mode
 
   
-    PR3 = 10000;  // interrupt at 10 ms
+    PR3 = 30000;  // interrupt at 10 ms
     IEC0bits.T3IE = 1;  // enable interrupt
     IPC2bits.T3IP = 0b010;  // set interrupt priority
 }
@@ -133,18 +128,11 @@ void init_timer2(void){
 }
 
 //delay in us
-//volatile unsigned int timer2_count = 0; // volatile variable to store the Timer 2 interrupt count
-
 void delay_us(uint16_t time_us)
 {
-  //  timer2_count = 0;
     PR2 = time_us * 4;
     T2CONbits.TON = 1;
-//    while (!IFS0bits.T2IF); // Wait for Timer2 interrupt flag to be set
-//    IFS0bits.T2IF = 0; // Clear Timer2 interrupt flag
-//    T2CONbits.TON = 0; // Stop Timer2
     Idle();
-    //while(timer2_count == 0);
 }
 
  // initialize timer 1
@@ -181,20 +169,22 @@ void clear_bit(uint8_t i){
     data = data & ~((uint32_t)1 << i);
 }
 
-
-// LCD Functions
+// LCD Functions:
 void Nybble(void){
     E = 1;
     delay_us(1); //enable pulse width >= 300ns
     E = 0; //Clock enable: falling edge 
 }
 
+// puts data in LCD pins
 void put_data(uint8_t i){
     DB7 = i >> 7;
     DB6 = (i >> 6) & 1;
     DB5 = (i >> 5) & 1;
     DB4 = (i >> 4) & 1;
 }
+
+// sends a command to the LCD
 void command(char i){
     put_data(i); //put data on output Port
     RS =0; //D/I=LOW : send instruction
@@ -205,6 +195,7 @@ void command(char i){
     Nybble(); //Send upper 4 bits 
 }
 
+// writes a character to the LCD
 void write(char i) {
     put_data(i); //put data on output Port
     RS =1; //D/I=HIGH : send data
@@ -215,19 +206,22 @@ void write(char i) {
     Nybble(); //Clock upper 4 bits 
 }
 
+// writes a string to the LCD
 void write_string(char *str){
     for(int i=0; str[i]!='\0'; i++){
         write(str[i]);
+        delay_us(10);
     }
 }
 
+// clears LCD
 void clear_LCD(void){
     command(0x00);
     command(0x01);
 }
 
 void init_LCD(void){
-    
+    // set inputs
     TRISBbits.TRISB7 = 0;
     TRISBbits.TRISB8 = 0;
     TRISBbits.TRISB9 = 0;
@@ -258,7 +252,10 @@ void init_LCD(void){
 
 // RF functions
 void process_data(void){
-
+    
+    // count signals received
+    count++;
+    
     if (data == SAFETY)
     {
         left_state = 0;
@@ -267,49 +264,78 @@ void process_data(void){
         down_state = 0;
         clear_LCD();
     }
-    else if (data == LEFT)
+    
+    if (data == LEFT)
     {
         left_state = 1;
     }
-    else if (data == RIGHT)
+    
+    if (data == RIGHT)
     {
         right_state = 1;
     }
-    else if (data == UP)
+
+    if (data == UP)
     {
         up_state = 1;
     }
-    else if (data == DOWN)
+    
+    if (data == DOWN)
     {
         down_state = 1;
     }
-    
+  
+    // reset data complete flag
     data_complete = 0;
     
-    if (previous_right_state != right_state || previous_left_state != left_state || previous_up_state != up_state || previous_down_state != down_state)
-    {
-        clear_LCD();
-        delay_us(1000);
-        if (up_state){
-            write_string("up ");
-        }
-        if (down_state){
-            write_string("down ");
-        }
-        if (left_state){
-            write_string("left ");
-        }
-        if (right_state){
-            write_string("right ");
+    // only update after 2 signals received
+    if (count == 2){
+        
+        // check if signals changed, if changed update LCD
+        if (previous_right_state != right_state || previous_left_state != left_state || previous_up_state != up_state || previous_down_state != down_state)
+        {
+            clear_LCD();
+            delay_us(1000);
+            if (up_state){
+                write_string("up ");
+                delay_us(1000);
+                command(0xc0);
+            }
+            if (down_state){
+                write_string("down ");
+                delay_us(1000);
+                command(0xc0);
+            }
+            if (left_state){
+                write_string("left ");
+                delay_us(1000);
+                command(0xc0);
+            }
+            if (right_state){
+                write_string("right ");
+                delay_us(1000);
+                command(0xc0);
+            }
         }
         
+        // update previous states
         previous_right_state = right_state;
         previous_left_state = left_state;
         previous_up_state = up_state;
         previous_down_state = down_state;
+        
+        // reset current states
+        left_state = 0;
+        right_state = 0;
+        up_state = 0;
+        down_state = 0;
+        
+        // reset count
+        count = 0;
     }
 }
 
+// Process signal received
 void process_signal(void){
     
     signal_received = 0;
@@ -373,8 +399,8 @@ void process_signal(void){
             
             i++;    // increment i
             
-            if(i > 31){            // if all bits are received, mark data as complete
-                data_complete = 1;                    
+            if(i > 31){            // if all bits are received, mark data as complete      
+                data_complete = 1;
             }
             
             state = 3;             // go to state 3 to receive next bit
@@ -390,44 +416,57 @@ int main(void) {
     // Nesting OFF
     INTCON1bits.NSTDIS = 1;
     
+    // set clock to 8MHz
     NewClk(8);
-    // IO CN config bits
-    TRISAbits.TRISA4 = 1;
-    TRISBbits.TRISB2 = 1; 
     
-    IEC1bits.CNIE = 1;
-    CNEN1bits.CN6IE = 1;  
+    // set RA4 as input for the RF receiver, and enable interrupt
+    TRISAbits.TRISA4 = 1;
+    IEC1bits.CNIE = 1; 
     CNEN1bits.CN0IE = 1;
     IPC4bits.CNIP = 0b111;
      
-    TRISBbits.TRISB4 = 0;
+    // init timers
     init_timer1();
     init_timer2();
     init_timer3();
+    
+    // init LCD
     init_LCD();
     
-
     while(1) {
+        
+        // process signal
         if (signal_received){
             process_signal();  
+            
+            // Reset timer used for timeout
+            TMR3 = 0;
         }
         
-        if (data_complete == 1){
-            
+        if (data_complete){
             process_data();
+            
+            // start timer for timeout, if no data received before timeout then timeout_reached = 1
             TMR3 = 0;
             T3CONbits.TON = 1;
         }
         
+        // no signal received, timeout reached 
         if (timeout_reached){
+            //clear LCD 
             clear_LCD();
             
+            // Reset States
             up_state = 0;
             down_state = 0;
             left_state = 0;
             right_state = 0;
             
-            timer3_count = 0;
+            previous_right_state = 0;
+            previous_left_state = 0;
+            previous_up_state = 0;
+            previous_down_state = 0;
+            
             T3CONbits.TON = 0;
             timeout_reached = 0;
         }
@@ -457,41 +496,7 @@ void __attribute__((interrupt, no_auto_psv)) _T2Interrupt(void)
 
 void __attribute__((interrupt, no_auto_psv)) _T3Interrupt(void)
 {
-    timer3_count++;
-    if(timer3_count == 10)
-        timeout_reached = 1;
+    timeout_reached = 1;
     TMR3 = 0;
     IFS0bits.T3IF = 0; //Clear timer 3 interrupt flag
 }
-
-    
-//    if (data == SAFETY){
-//        left_state = 0;
-//        right_state = 0;
-//        up_state = 0;
-//        down_state = 0;
-//        clear_LCD();
-//    }else if (data == LEFT){
-//        left_state = 1;
-//    }else if (data == NLEFT)
-//    {
-//        left_state = 0;
-//    }else if (data == RIGHT)
-//    {
-//        right_state = 1;
-//    }else if (data == NRIGHT)
-//    {
-//        right_state = 0;
-//    }else if (data == UP)
-//    {
-//        up_state = 1;
-//    }else if (data == NUP)
-//    {
-//        up_state = 0;
-//    }else if (data == DOWN)
-//    {
-//        down_state = 1;
-//    }else if (data == NDOWN)
-//    {
-//        down_state = 0;
-//    }
