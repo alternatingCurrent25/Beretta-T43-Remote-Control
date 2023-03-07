@@ -87,11 +87,11 @@ Default Scalar Model: Small
 
 section                    address   length (PC units)   length (bytes) (dec)
 -------                    -------   -----------------   --------------------
-.text                        0x200               0x1be           0x29d  (669)
-.text                        0x3be               0x1a6           0x279  (633)
-.dinit                       0x564                0x12            0x1b  (27)
+.text                        0x200                0xf2           0x16b  (363)
+.text                        0x2f2               0x302           0x483  (1155)
+.dinit                       0x5f4                0x12            0x1b  (27)
 
-                 Total "program" memory used (bytes):          0x531  (1329) 8%
+                 Total "program" memory used (bytes):          0x609  (1545) 9%
 
 
 "data" Memory  [Origin = 0x800, Length = 0x600]
@@ -99,9 +99,9 @@ section                    address   length (PC units)   length (bytes) (dec)
 section                    address      alignment gaps    total length  (dec)
 -------                    -------      --------------    -------------------
 .ndata                       0x800                   0             0x6  (6)
-.nbss                        0x806                   0             0x2  (2)
+.nbss                        0x806                   0             0x4  (4)
 
-                 Total "data" memory used (bytes):            0x8  (8) <1%
+                 Total "data" memory used (bytes):            0xa  (10) <1%
 
 
 Dynamic Memory Usage
@@ -109,9 +109,9 @@ Dynamic Memory Usage
 region                     address                      maximum length  (dec)
 ------                     -------                      ---------------------
 heap                             0                                   0  (0)
-stack                        0x808                               0x5f8  (1528)
+stack                        0x80a                               0x5f6  (1526)
 
-                 Maximum dynamic memory (bytes):          0x5f8  (1528)
+                 Maximum dynamic memory (bytes):          0x5f6  (1526)
 
 Info: Project is using a large data memory model when small data memory model is sufficient.
 
@@ -123,7 +123,8 @@ External Symbols in Data Memory (by address):
                     0x0802                  _b3_state
                     0x0803                  _b4_state
                     0x0804                  _b5_state
-                    0x0806                  _timer_count
+                    0x0806                  _state_change
+                    0x0808                  _timer_count
 
 External Symbols in Data Memory (by name):
 
@@ -132,7 +133,8 @@ External Symbols in Data Memory (by name):
                     0x0802                  _b3_state
                     0x0803                  _b4_state
                     0x0804                  _b5_state
-                    0x0806                  _timer_count
+                    0x0806                  _state_change
+                    0x0808                  _timer_count
 
 External Symbols in Program Memory (by address):
 
@@ -142,25 +144,26 @@ External Symbols in Program Memory (by address):
                   0x000252                  __data_init_standard
                   0x0002c8                  __T1Interrupt
                   0x0002dc                  __CNInterrupt
-                  0x0003b8                  __DefaultInterrupt
-                  0x0003be                  _init_buttons
-                  0x0003ec                  _init_timer
-                  0x000412                  _delay_us
-                  0x000426                  _delay_ms
-                  0x000446                  _start_bit
-                  0x000458                  _zero_bit
-                  0x00046a                  _one_bit
-                  0x00047c                  _send_signal
-                  0x0004c0                  _main
-                  0x0004e0                  _NewClk
+                  0x0002ec                  __DefaultInterrupt
+                  0x0002f2                  _init_buttons
+                  0x000320                  _init_timer
+                  0x000346                  _delay_us
+                  0x00035a                  _delay_ms
+                  0x00037a                  _start_bit
+                  0x00038c                  _zero_bit
+                  0x00039e                  _one_bit
+                  0x0003b0                  _send_signal
+                  0x0003f4                  _update_states
+                  0x0004bc                  _main
+                  0x000570                  _NewClk
                   0xf80000                  __FBS.sec
                   0xf80004                  __FGS.sec
 
 External Symbols in Program Memory (by name):
 
-                  0x0004e0                  _NewClk
+                  0x000570                  _NewClk
                   0x0002dc                  __CNInterrupt
-                  0x0003b8                  __DefaultInterrupt
+                  0x0002ec                  __DefaultInterrupt
                   0xf80000                  __FBS.sec
                   0xf80004                  __FGS.sec
                   0x0002c8                  __T1Interrupt
@@ -168,15 +171,16 @@ External Symbols in Program Memory (by name):
                   0x000252                  __data_init_standard
                   0x00023c                  __psv_init
                   0x000200                  __resetPRI
-                  0x000426                  _delay_ms
-                  0x000412                  _delay_us
-                  0x0003be                  _init_buttons
-                  0x0003ec                  _init_timer
-                  0x0004c0                  _main
-                  0x00046a                  _one_bit
-                  0x00047c                  _send_signal
-                  0x000446                  _start_bit
-                  0x000458                  _zero_bit
+                  0x00035a                  _delay_ms
+                  0x000346                  _delay_us
+                  0x0002f2                  _init_buttons
+                  0x000320                  _init_timer
+                  0x0004bc                  _main
+                  0x00039e                  _one_bit
+                  0x0003b0                  _send_signal
+                  0x00037a                  _start_bit
+                  0x0003f4                  _update_states
+                  0x00038c                  _zero_bit
 
 Memory Configuration
 
@@ -227,7 +231,7 @@ LOAD c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libfx-elf.a
                   0x000002          0x2 SHORT 0x0 ((ABSOLUTE (__reset) >> 0x10) & 0x7f)
                   0x000003          0x2 SHORT 0x0
 
-.text             0x000200        0x1be
+.text             0x000200         0xf2
  *(.init)
  .init            0x000200         0x4c c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libc99-pic30-elf.a(crt0_standard.o)
                   0x000200                  __resetPRI
@@ -239,31 +243,31 @@ LOAD c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libfx-elf.a
  *(.user_init)
  *(.handle)
  *(.isr*)
- .isr.text        0x0002c8         0xf0 build/default/production/main.o
+ .isr.text        0x0002c8         0x24 build/default/production/main.o
                   0x0002c8                  __T1Interrupt
                   0x0002dc                  __CNInterrupt
- .isr             0x0003b8          0x4 default_isr
-                  0x0003b8                  __DefaultInterrupt
+ .isr             0x0002ec          0x4 default_isr
+                  0x0002ec                  __DefaultInterrupt
  *(.libc)
  *(.libm)
  *(.libdsp)
  *(.lib*)
  .libpic30_crt_start_mode
-                  0x0003bc          0x2 c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libc99-pic30-elf.a(crt_start_mode_normal.Meo)
-                  0x0003bc                  __crt_start_mode
-                  0x0003bc                  __crt_start_mode_normal
+                  0x0002f0          0x2 c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libc99-pic30-elf.a(crt_start_mode_normal.Meo)
+                  0x0002f0                  __crt_start_mode
+                  0x0002f0                  __crt_start_mode_normal
 
 usercode
  *(usercode)
 
 __FBS             0xf80000          0x2
  *(__FBS.sec*)
- __FBS.sec        0xf80000          0x2 /CW/_FBS
+ __FBS.sec        0xf80000          0x2 /CW/_FBS Ó
                   0xf80000                  __FBS.sec
 
 __FGS             0xf80004          0x2
  *(__FGS.sec*)
- __FGS.sec        0xf80004          0x2 /CW/_FGSð™Ä
+ __FGS.sec        0xf80004          0x2 /CW/_FGSàÅÒ
                   0xf80004                  __FGS.sec
 
 __FOSCSEL
@@ -287,31 +291,31 @@ __FDS
 .comment
  *(.comment)
 
-.debug_info       0x000000       0x1dc0
+.debug_info       0x000000       0x1d2a
  *(.debug_info)
- .debug_info      0x000000       0x1830 build/default/production/main.o
- .debug_info      0x001830        0x590 build/default/production/_ext/1596128289/ChangeClk.o
+ .debug_info      0x000000       0x179a build/default/production/main.o
+ .debug_info      0x00179a        0x590 build/default/production/_ext/1596128289/ChangeClk.o
  *(.gnu.linkonce.wi.*)
 
-.debug_abbrev     0x000000        0x29a
+.debug_abbrev     0x000000        0x2af
  *(.debug_abbrev)
- .debug_abbrev    0x000000        0x168 build/default/production/main.o
- .debug_abbrev    0x000168        0x132 build/default/production/_ext/1596128289/ChangeClk.o
+ .debug_abbrev    0x000000        0x17d build/default/production/main.o
+ .debug_abbrev    0x00017d        0x132 build/default/production/_ext/1596128289/ChangeClk.o
 
-.debug_line       0x000000        0x2ed
+.debug_line       0x000000        0x30a
  *(.debug_line)
- .debug_line      0x000000        0x185 build/default/production/main.o
- .debug_line      0x000185        0x168 build/default/production/_ext/1596128289/ChangeClk.o
+ .debug_line      0x000000        0x1a2 build/default/production/main.o
+ .debug_line      0x0001a2        0x168 build/default/production/_ext/1596128289/ChangeClk.o
 
 .debug_frame      0x000000        0x18e
  *(.debug_frame)
  .debug_frame     0x000000        0x160 build/default/production/main.o
  .debug_frame     0x000160         0x2e build/default/production/_ext/1596128289/ChangeClk.o
 
-.debug_str        0x000000         0xf4
+.debug_str        0x000000         0xf8
  *(.debug_str)
- .debug_str       0x000000         0xde build/default/production/main.o
- .debug_str       0x0000de         0x16 build/default/production/_ext/1596128289/ChangeClk.o
+ .debug_str       0x000000         0xe2 build/default/production/main.o
+ .debug_str       0x0000e2         0x16 build/default/production/_ext/1596128289/ChangeClk.o
 
 .debug_loc
  *(.debug_loc)
@@ -320,12 +324,12 @@ __FDS
  *(.debug_macinfo)
 
 .debug_pubnames
-                  0x000000        0x11c
+                  0x000000        0x13f
  *(.debug_pubnames)
  .debug_pubnames
-                  0x000000         0xff build/default/production/main.o
+                  0x000000        0x122 build/default/production/main.o
  .debug_pubnames
-                  0x0000ff         0x1d build/default/production/_ext/1596128289/ChangeClk.o
+                  0x000122         0x1d build/default/production/_ext/1596128289/ChangeClk.o
 
 .debug_ranges
  *(.debug_ranges)
@@ -742,28 +746,28 @@ LOAD c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libm-elf.a
 LOAD c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libc99-elf.a
 END GROUP
 OUTPUT(dist/default/production/Transmitter.X.production.elf elf32-pic30)
-LOAD /CW/_FGSð™Ä
-LOAD /CW/_FBS
+LOAD /CW/_FGSàÅÒ
+LOAD /CW/_FBS Ó
 LOAD default_isr
 LOAD data_init
 
 .debug_pubtypes
-                  0x000030        0x2d4
+                  0x000030        0x2b7
  .debug_pubtypes
-                  0x000030        0x25a build/default/production/main.o
+                  0x000030        0x23d build/default/production/main.o
  .debug_pubtypes
-                  0x00028a         0x7a build/default/production/_ext/1596128289/ChangeClk.o
+                  0x00026d         0x7a build/default/production/_ext/1596128289/ChangeClk.o
 
 __c30_signature
-                  0x000304         0x18
+                  0x0002e7         0x18
  __c30_signature
-                  0x000304          0x6 build/default/production/main.o
+                  0x0002e7          0x6 build/default/production/main.o
  __c30_signature
-                  0x00030a          0x6 build/default/production/_ext/1596128289/ChangeClk.o
+                  0x0002ed          0x6 build/default/production/_ext/1596128289/ChangeClk.o
  __c30_signature
-                  0x000310          0x6 c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libc99-pic30-elf.a(crt0_standard.o)
+                  0x0002f3          0x6 c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libc99-pic30-elf.a(crt0_standard.o)
  __c30_signature
-                  0x000316          0x6 c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libc99-pic30-elf.a(data_init_standard.o)
+                  0x0002f9          0x6 c:/program files/microchip/xc16/v2.00/bin/bin/../../lib\libc99-pic30-elf.a(data_init_standard.o)
 
 .ndata              0x0800          0x6
  .ndata             0x0800          0x6 build/default/production/main.o
@@ -773,9 +777,10 @@ __c30_signature
                     0x0803                  _b4_state
                     0x0804                  _b5_state
 
-.nbss               0x0806          0x2
- .nbss              0x0806          0x2 build/default/production/main.o
-                    0x0806                  _timer_count
+.nbss               0x0806          0x4
+ .nbss              0x0806          0x4 build/default/production/main.o
+                    0x0806                  _state_change
+                    0x0808                  _timer_count
 
 .config_DSWDTEN
                   0xf80010          0x2
@@ -808,19 +813,20 @@ __c30_signature
  .ivt._CNInterrupt
                   0x00003a          0x2 build/default/production/main.o
 
-.text             0x0003be        0x1a6
- .text            0x0003be        0x122 build/default/production/main.o
-                  0x0003be                  _init_buttons
-                  0x0003ec                  _init_timer
-                  0x000412                  _delay_us
-                  0x000426                  _delay_ms
-                  0x000446                  _start_bit
-                  0x000458                  _zero_bit
-                  0x00046a                  _one_bit
-                  0x00047c                  _send_signal
-                  0x0004c0                  _main
- .text            0x0004e0         0x84 build/default/production/_ext/1596128289/ChangeClk.o
-                  0x0004e0                  _NewClk
+.text             0x0002f2        0x302
+ .text            0x0002f2        0x27e build/default/production/main.o
+                  0x0002f2                  _init_buttons
+                  0x000320                  _init_timer
+                  0x000346                  _delay_us
+                  0x00035a                  _delay_ms
+                  0x00037a                  _start_bit
+                  0x00038c                  _zero_bit
+                  0x00039e                  _one_bit
+                  0x0003b0                  _send_signal
+                  0x0003f4                  _update_states
+                  0x0004bc                  _main
+ .text            0x000570         0x84 build/default/production/_ext/1596128289/ChangeClk.o
+                  0x000570                  _NewClk
 
-.dinit            0x000564         0x12
- .dinit           0x000564         0x12 data_init
+.dinit            0x0005f4         0x12
+ .dinit           0x0005f4         0x12 data_init

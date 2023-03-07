@@ -138,7 +138,7 @@ void delay_us(uint16_t time_us)
     timer_count = 0;
     
     //NewClk(8);
-    PR1 = time_us * 8;
+    PR1 = time_us * 4;
     T1CONbits.TON = 1;
     Idle();
 }
@@ -260,21 +260,48 @@ int main(void) {
     INTCON1bits.NSTDIS = 1;
     
     NewClk(8);
-    
+      
     init_timer();
-    //init_buttons();
+    init_buttons();
     
     TRISAbits.TRISA4 = 0;
     TRISBbits.TRISB4 = 0;
-    LATAbits.LATA4 = 1;  
-
+     
     while(1) {
-//        send_signal(0xE0E048B7);
-        delay_ms(250);
-        send_signal(SAFETY);
-        if (state_change){
-            update_states();   
+//        if (state_change){
+//            update_states();   
+//        }
+//    
+        while(B1 == 0 || B2 == 0 || B3 == 0 || B4 == 0 || B5 == 0)
+        {
+            if (B1 == 0){
+                send_signal(LEFT);
+                delay_us(1000);
+            }
+            
+            if (B2 == 0){
+                send_signal(RIGHT);
+                delay_us(1000);
+            }
+            
+            if (B3 == 0){
+                send_signal(UP);
+                delay_us(1000);
+            }
+            
+            if (B4 == 0){
+                send_signal(DOWN);
+                delay_us(1000);
+            }
+            
+            if (B5 == 0){
+                send_signal(SAFETY);
+                delay_us(1000);
+            }
+            
+            delay_us(5000);
         }
+        
     }
     return 0;
 }
@@ -282,6 +309,7 @@ int main(void) {
 // timer1 interrupt function
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void)
 {
+
     IFS0bits.T1IF=0; //Clear timer 2 interrupt flag
     T1CONbits.TON=0;
     timer_count++;

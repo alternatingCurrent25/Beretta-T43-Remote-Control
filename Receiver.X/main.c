@@ -97,27 +97,54 @@ uint8_t down_state = 0;
 uint8_t left_state = 0;
 uint8_t right_state = 0;
 
+uint8_t previous_up_state = 0;
+uint8_t previous_down_state = 0;
+uint8_t previous_left_state = 0;
+uint8_t previous_right_state = 0;
+
+uint8_t signal_received = 0;
+uint8_t timeout_reached = 0;
+
+volatile unsigned int timer3_count = 0;
+void init_timer3(void){  
+    T3CONbits.TON = 0;   // Disable Timer1
+    T3CONbits.TCS = 0;   // Select internal clock source
+    T3CONbits.TCKPS = 0b01; // Set prescaler to 1:8
+    T3CONbits.TGATE = 0; // Disable gated time accumulation
+    T3CONbits.TSIDL = 0; // Continue operation in idle mode
+
+  
+    PR3 = 10000;  // interrupt at 10 ms
+    IEC0bits.T3IE = 1;  // enable interrupt
+    IPC2bits.T3IP = 0b010;  // set interrupt priority
+}
+
 void init_timer2(void){  
     T2CONbits.TON = 0;   // Disable Timer1
     T2CONbits.TCS = 0;   // Select internal clock source
-    T2CONbits.TCKPS = 0b10; // Set prescaler to 1:8
+    T2CONbits.TCKPS = 0b00; // Set prescaler to 1:8
     T2CONbits.TGATE = 0; // Disable gated time accumulation
     T2CONbits.TSIDL = 0; // Continue operation in idle mode
     T2CONbits.T32 = 0; 
   
+    PR2 = 20000;  // interrupt at 5 ms
     IEC0bits.T2IE = 1;  // enable interrupt
-    IPC1bits.T2IP = 0b100;  // set interrupt priority
+    IPC1bits.T2IP = 0b001;  // set interrupt priority
 }
 
 //delay in us
-volatile unsigned int timer2_count = 0; // volatile variable to store the Timer 2 interrupt count
+//volatile unsigned int timer2_count = 0; // volatile variable to store the Timer 2 interrupt count
 
 void delay_us(uint16_t time_us)
 {
-    timer2_count = 0;
+  //  timer2_count = 0;
     PR2 = time_us * 4;
     T2CONbits.TON = 1;
-    while(timer2_count == 0);
+//    while (!IFS0bits.T2IF); // Wait for Timer2 interrupt flag to be set
+//    IFS0bits.T2IF = 0; // Clear Timer2 interrupt flag
+//    T2CONbits.TON = 0; // Stop Timer2
+    Idle();
+    //while(timer2_count == 0);
 }
 
  // initialize timer 1
@@ -131,7 +158,7 @@ void init_timer1(void){
     
     PR1 = 20000;  // interrupt at 5 ms
     IEC0bits.T1IE = 1;  // enable interrupt
-    IPC0bits.T1IP = 0b101;  // set interrupt priority
+    IPC0bits.T1IP = 0b011;  // set interrupt priority
 }
 
 // returns time of timer 1
@@ -154,43 +181,8 @@ void clear_bit(uint8_t i){
     data = data & ~((uint32_t)1 << i);
 }
 
-// 
-void process_data(void){
-    
-    if (data == SAFETY){
-        left_state = 0;
-        right_state = 0;
-        up_state = 0;
-        down_state = 0;
-    }else if (data == LEFT){
-        left_state = 1;
-    }else if (data == NLEFT)
-    {
-        left_state = 0;
-    }else if (data == RIGHT)
-    {
-        right_state = 1;
-    }else if (data == NRIGHT)
-    {
-        right_state = 1;
-    }else if (data == UP)
-    {
-        up_state = 1;
-    }else if (data == NUP)
-    {
-        up_state = 0;
-    }else if (data == DOWN)
-    {
-        down_state = 1;
-    }else if (data == NDOWN)
-    {
-        down_state = 0;
-    }
-    
-}
 
 // LCD Functions
-
 void Nybble(void){
     E = 1;
     delay_us(1); //enable pulse width >= 300ns
@@ -264,59 +256,69 @@ void init_LCD(void){
     command(0x06); //Entry Mode set 
 }
 
-int main(void) {
-    
-    // Analog ports to digital
-    AD1PCFG = 0xFFFF; 
-    
-    NewClk(8);
-    // IO CN config bits
-    TRISAbits.TRISA4 = 1;
-    TRISBbits.TRISB2 = 1; 
-    
-    IEC1bits.CNIE = 1;
-    CNEN1bits.CN6IE = 1;  
-    CNEN1bits.CN0IE = 1;
-    IPC4bits.CNIP = 0b001;
-     
-    TRISBbits.TRISB4 = 0;
-    init_timer1();
-    init_timer2();
-    init_LCD();
-    
+// RF functions
+void process_data(void){
 
-    while(1) {
-        
-        if (data_complete == 1){
-            process_data();
-            clear_LCD();
-            if (up_state){
-                write_string("up ");
-            }
-            if (down_state){
-                write_string("down ");
-            }
-            if (left_state){
-                write_string("left ");
-            }
-            if (right_state){
-                write_string("right ");
-            }
-            data_complete = 0;
-        }
+    if (data == SAFETY)
+    {
+        left_state = 0;
+        right_state = 0;
+        up_state = 0;
+        down_state = 0;
+        clear_LCD();
     }
-    return 0;
+    else if (data == LEFT)
+    {
+        left_state = 1;
+    }
+    else if (data == RIGHT)
+    {
+        right_state = 1;
+    }
+    else if (data == UP)
+    {
+        up_state = 1;
+    }
+    else if (data == DOWN)
+    {
+        down_state = 1;
+    }
+    
+    data_complete = 0;
+    
+    if (previous_right_state != right_state || previous_left_state != left_state || previous_up_state != up_state || previous_down_state != down_state)
+    {
+        clear_LCD();
+        delay_us(1000);
+        if (up_state){
+            write_string("up ");
+        }
+        if (down_state){
+            write_string("down ");
+        }
+        if (left_state){
+            write_string("left ");
+        }
+        if (right_state){
+            write_string("right ");
+        }
+        
+        previous_right_state = right_state;
+        previous_left_state = left_state;
+        previous_up_state = up_state;
+        previous_down_state = down_state;
+    }
 }
 
-void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void){
+void process_signal(void){
+    
+    signal_received = 0;
     
     if(state != 0){
         time = get_time1();                         // Store Timer1 value
         set_timer1(0);                              // Reset Timer1
     }
-    
-    IFS1bits.CNIF = 0;
-    
+       
     switch(state){
         
         case 0 :                 // Start receiving IR data
@@ -380,6 +382,64 @@ void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void){
   }
 }
 
+int main(void) {
+    
+    // Analog ports to digital
+    AD1PCFG = 0xFFFF;
+    
+    // Nesting OFF
+    INTCON1bits.NSTDIS = 1;
+    
+    NewClk(8);
+    // IO CN config bits
+    TRISAbits.TRISA4 = 1;
+    TRISBbits.TRISB2 = 1; 
+    
+    IEC1bits.CNIE = 1;
+    CNEN1bits.CN6IE = 1;  
+    CNEN1bits.CN0IE = 1;
+    IPC4bits.CNIP = 0b111;
+     
+    TRISBbits.TRISB4 = 0;
+    init_timer1();
+    init_timer2();
+    init_timer3();
+    init_LCD();
+    
+
+    while(1) {
+        if (signal_received){
+            process_signal();  
+        }
+        
+        if (data_complete == 1){
+            
+            process_data();
+            TMR3 = 0;
+            T3CONbits.TON = 1;
+        }
+        
+        if (timeout_reached){
+            clear_LCD();
+            
+            up_state = 0;
+            down_state = 0;
+            left_state = 0;
+            right_state = 0;
+            
+            timer3_count = 0;
+            T3CONbits.TON = 0;
+            timeout_reached = 0;
+        }
+    }
+    return 0;
+}
+
+void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void){
+    signal_received = 1;
+    IFS1bits.CNIF = 0;
+}
+
 // interrupt happens when timer hits 5ms: receiver is idle, reset state to 0 
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void)
 {
@@ -390,7 +450,48 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void)
 
 void __attribute__((interrupt, no_auto_psv)) _T2Interrupt(void)
 {
-    timer2_count++;
+   // timer2_count++;
     T2CONbits.TON = 0;
     IFS0bits.T2IF = 0; //Clear timer 2 interrupt flag
 }
+
+void __attribute__((interrupt, no_auto_psv)) _T3Interrupt(void)
+{
+    timer3_count++;
+    if(timer3_count == 10)
+        timeout_reached = 1;
+    TMR3 = 0;
+    IFS0bits.T3IF = 0; //Clear timer 3 interrupt flag
+}
+
+    
+//    if (data == SAFETY){
+//        left_state = 0;
+//        right_state = 0;
+//        up_state = 0;
+//        down_state = 0;
+//        clear_LCD();
+//    }else if (data == LEFT){
+//        left_state = 1;
+//    }else if (data == NLEFT)
+//    {
+//        left_state = 0;
+//    }else if (data == RIGHT)
+//    {
+//        right_state = 1;
+//    }else if (data == NRIGHT)
+//    {
+//        right_state = 0;
+//    }else if (data == UP)
+//    {
+//        up_state = 1;
+//    }else if (data == NUP)
+//    {
+//        up_state = 0;
+//    }else if (data == DOWN)
+//    {
+//        down_state = 1;
+//    }else if (data == NDOWN)
+//    {
+//        down_state = 0;
+//    }
