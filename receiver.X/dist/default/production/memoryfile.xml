@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project>
+  <executable name="dist/default/production/receiver.X.production.">
+    <memory name="data">
+      <units>bytes</units>
+      <length>2048</length>
+      <used>22</used>
+      <free>2026</free>
+    </memory>
+    <memory name="program">
+      <units>bytes</units>
+      <length>33024</length>
+      <used>2382</used>
+      <free>30642</free>
+    </memory>
+  </executable>
+</project>
