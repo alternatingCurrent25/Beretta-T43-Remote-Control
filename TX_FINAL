@@ -39,7 +39,7 @@
 #pragma config MCLRE = ON               // MCLR Pin Enable bit (RA5 input pin disabled,MCLR pin enabled)
 
 // FICD
-#pragma config ICS = PGx2               // ICD Pin Placement Select bits (EMUC/EMUD share PGC1/PGD1)
+#pragma config ICS = PGx2               // ICD Pin Placement Select bits (EMUC/EMUD share PGC2/PGD2)
 
 // FDS
 #pragma config DSWDTPS = DSWDTPSF       // Deep Sleep Watchdog Timer Postscale Select bits (1:2,147,483,648 (25.7 Days))
@@ -51,6 +51,7 @@
 // Use project enums instead of #define for ON and OFF.
 
 #include <xc.h>
+
 /* ENEL 500
  * 
  * File: main.c 
@@ -68,14 +69,14 @@
 
 #include "ChangeClk.h"
 
-//// CONFIGURATION BITS ////
-
-// Code protection 
-//#pragma config BSS = OFF // Boot segment code protect disabled
-//#pragma config BWRP = OFF // Boot sengment flash write protection off
-//#pragma config GCP = OFF // general segment code protecion off
-//#pragma config GWRP = OFF
-////
+////// CONFIGURATION BITS ////
+//
+//// Code protection 
+////#pragma config BSS = OFF // Boot segment code protect disabled
+////#pragma config BWRP = OFF // Boot sengment flash write protection off
+////#pragma config GCP = OFF // general segment code protecion off
+////#pragma config GWRP = OFF
+//
 //// CLOCK CONTROL 
 //#pragma config IESO = OFF    // 2 Speed Startup disabled
 //#pragma config FNOSC = FRC  // Start up CLK = 8 MHz
@@ -84,7 +85,7 @@
 //#pragma config POSCFREQ = MS  //Primary Oscillator/External clk freq betwn 100kHz and 8 MHz. Options: LS, MS, HS
 //#pragma config OSCIOFNC = ON  //CLKO output disabled on pin 8, use as IO. 
 //#pragma config POSCMOD = NONE  // Primary oscillator mode is disabled
-////
+//
 //// WDT
 //#pragma config FWDTEN = OFF // WDT is off
 //#pragma config WINDIS = OFF // STANDARD WDT/. Applicable if WDT is on
@@ -93,18 +94,18 @@
 //
 //// MCLR/RA5 CONTROL
 ////#pragma config MCLRE = OFF // RA5 pin configured as input, MCLR reset on RA5 diabled
-////
+//
 //// BOR  - FPOR Register
 //#pragma config BORV = LPBOR // LPBOR value=2V is BOR enabled
 //#pragma config BOREN = BOR0 // BOR controlled using SBOREN bit
 //#pragma config PWRTEN = OFF // Powerup timer disabled
 //#pragma config I2C1SEL = PRI // Default location for SCL1/SDA1 pin
-////
+
 //// JTAG FICD Register
-////#pragma config BKBUG = OFF // Background Debugger functions disabled
+//#pragma config BKBUG = OFF // Background Debugger functions disabled
 //#pragma config ICS = PGx2 // PGC2 (pin2) & PGD2 (pin3) are used to connect PICKIT3 debugger
 //
-// Deep Sleep RTCC WDT
+//// Deep Sleep RTCC WDT
 //#pragma config DSWDTEN = OFF // Deep Sleep WDT is disabled
 //#pragma config DSBOREN = OFF // Deep Sleep BOR is disabled
 //#pragma config RTCOSC = LPRC// RTCC uses LPRC 32kHz for clock
@@ -128,466 +129,192 @@
 #define DOWN    0xE0E0E62F 
 #define SAFETY  0xE0E080BF
 
-// Solenoid PinOut
+// Buttons
+#define B1 PORTBbits.RB7
+#define B2 PORTBbits.RB8
+#define B3 PORTBbits.RB9
+#define B4 PORTBbits.RB12
+#define B5 PORTBbits.RB13
+
+// init buttons
+
+void init_buttons(void) {
+    //    CNEN2bits.CN23IE = 1; 
+    //    CNEN2bits.CN22IE = 1; 
+    //    CNEN2bits.CN21IE = 1;
+    //    CNEN1bits.CN8IE  = 1;
+    //    CNEN1bits.CN14IE = 1;
+
+    CNPU2bits.CN23PUE = 1;
+    CNPU2bits.CN22PUE = 1;
+    CNPU2bits.CN21PUE = 1;
+    CNPU1bits.CN13PUE = 1;
+    CNPU1bits.CN14PUE = 1;
+
+    //    IEC1bits.CNIE = 1;
+    //    IPC4bits.CNIP = 0b111;
+    TRISBbits.TRISB7 = 1;
+    TRISBbits.TRISB8 = 1;
+    TRISBbits.TRISB9 = 1;
+    TRISBbits.TRISB12 = 1;
+    TRISBbits.TRISB13 = 1;
 
 
-// LCD Pins
-#define RS  LATBbits.LATB7 //B7
-#define RW  LATBbits.LATB8 //B8
-#define E   LATBbits.LATB9 //B9
-#define DB4 LATBbits.LATB12 // WAS RA6 BEFORE //B12
-#define DB5 LATBbits.LATB13 //B13
-#define DB6 LATBbits.LATB14 //B14
-#define DB7 LATBbits.LATB15 //B15
 
-#define LED1 LATBbits.LATB1 
-#define LED2 LATBbits.LATB2 
-#define LED3 LATAbits.LATA2
-#define LED4 LATBbits.LATB0 
-#define LED5 LATBbits.LATB4 
-
-
-
-
-uint8_t state = 0, i = 31, data_complete = 0, count = 0;
-uint16_t time;
-uint32_t data = 0;
-
-uint8_t up_state = 0;
-uint8_t down_state = 0;
-uint8_t left_state = 0;
-uint8_t right_state = 0;
-
-uint8_t previous_up_state = 0;
-uint8_t previous_down_state = 0;
-uint8_t previous_left_state = 0;
-uint8_t previous_right_state = 0;
-
-uint8_t signal_received = 0;
-uint8_t timeout_reached = 0;
-
-void init_timer3(void) {
-    T4CONbits.TON = 0; // Disable Timer1
-    T4CONbits.TCS = 0; // Select internal clock source
-    T4CONbits.TCKPS = 0b10; // Set prescaler to 1:8
-    T4CONbits.TGATE = 0; // Disable gated time accumulation
-    T4CONbits.TSIDL = 0; // Continue operation in idle mode
-    T4CONbits.T32 = 0;
-
-    PR4 = 30000; // interrupt at 10 ms
-    IEC1bits.T4IE = 1; // enable interrupt
-    IPC6bits.T4IP = 0b110; // set interrupt priority
 }
 
-void init_timer2(void) {
-    T2CONbits.TON = 0; // Disable Timer1
-    T2CONbits.TCS = 0; // Select internal clock source
-    T2CONbits.TCKPS = 0b00; // Set prescaler to 1:8
-    T2CONbits.TGATE = 0; // Disable gated time accumulation
-    T2CONbits.TSIDL = 0; // Continue operation in idle mode
-    T2CONbits.T32 = 0;
+// init timer 1
 
-    PR2 = 20000; // interrupt at 5 ms
-    IEC0bits.T2IE = 1; // enable interrupt
-    IPC1bits.T2IP = 0b001; // set interrupt priority
+void init_timer(void) {
+    // Timer 1 config bits   
+    T1CONbits.TON = 0; // Disable Timer1
+    T1CONbits.TCS = 0; // Select internal clock source
+    T1CONbits.TCKPS = 0b00; // Set prescaler to 1:1
+    T1CONbits.TGATE = 0; // Disable gated time accumulation
+    T1CONbits.TSIDL = 0; // Continue operation in idle mode
+    T1CONbits.TSYNC = 0; // Do not synchronize external clock input
+
+    IEC0bits.T1IE = 1; // enable interrupt
+    IPC0bits.T1IP = 0b110; // set interrupt priority
 }
 
 //delay in us
 
 void delay_us(uint16_t time_us) {
-    PR2 = time_us * 4;
-    T2CONbits.TON = 1;
+    //NewClk(8);
+    PR1 = time_us * 4;
+    T1CONbits.TON = 1;
     Idle();
 }
 
-// initialize timer 1
+//delay in ms (max delay: 260 ms)
 
-void init_timer1(void) {
-    T1CONbits.TON = 0; // Disable Timer1
-    T1CONbits.TCS = 0; // Select internal clock source
-    T1CONbits.TCKPS = 0b00; // Set prescaler to 1:8
-    T1CONbits.TGATE = 0; // Disable gated time accumulation
-    T1CONbits.TSIDL = 0; // Continue operation in idle mode
-    T1CONbits.TSYNC = 0; // Do not synchronize external clock input
-
-    PR1 = 20000; // interrupt at 5 ms
-    IEC0bits.T1IE = 1; // enable interrupt
-    IPC0bits.T1IP = 0b011; // set interrupt priority
+void delay_ms(uint16_t time_ms) {
+    NewClk(500);
+    PR1 = time_ms * 250;
+    T1CONbits.TON = 1;
+    Idle();
+    NewClk(8);
 }
 
-// returns time of timer 1
+//sends start bit
 
-uint16_t get_time1(void) {
-    return (TMR1 / 4);
+void start_bit(void) {
+    LATAbits.LATA4 = 1;
+    delay_us(4500);
+    LATAbits.LATA4 = 0;
+    delay_us(4500);
 }
 
-// sets timer 1 
+//sends a zero bit
 
-void set_timer1(uint16_t time) {
-    TMR1 = (time * 4);
+void zero_bit(void) {
+    LATAbits.LATA4 = 1;
+    delay_us(560);
+    LATAbits.LATA4 = 0;
+    delay_us(560);
 }
 
-// sets bit i of data to 1
+//sends a 1 bit
 
-void set_bit(uint8_t i) {
-    data = data | ((uint32_t) 1 << i);
+void one_bit(void) {
+    LATAbits.LATA4 = 1;
+    delay_us(560);
+    LATAbits.LATA4 = 0;
+    delay_us(1690);
 }
 
-// sets bit i of data to 0
+// Send a signal on the RF transmitter
 
-void clear_bit(uint8_t i) {
-    data = data & ~((uint32_t) 1 << i);
-}
+void send_signal(uint32_t number) {
 
-// LCD Functions:
+    uint8_t i = 0; // Aux variable
 
-void Nybble(void) {
-    E = 1;
-    delay_us(1); //enable pulse width >= 300ns
-    E = 0; //Clock enable: falling edge 
-}
+    start_bit(); // Start bit
 
-// puts data in LCD pins
-
-void put_data(uint8_t i) {
-    DB7 = i >> 7;
-    DB6 = (i >> 6) & 1;
-    DB5 = (i >> 5) & 1;
-    //    DB4 = (i >> 4) & 1;
-}
-
-// sends a command to the LCD
-
-void command(char i) {
-    put_data(i); //put data on output Port
-    RS = 0; //D/I=LOW : send instruction
-    RW = 0; //R/W=LOW : Write 
-    Nybble(); //Send lower 4 bits
-    i = i << 4; //Shift over by 4 bits
-    put_data(i); //put data on output Port
-    Nybble(); //Send upper 4 bits 
-}
-
-// writes a character to the LCD
-
-void write(char i) {
-    put_data(i); //put data on output Port
-    RS = 1; //D/I=HIGH : send data
-    RW = 0; //R/W=LOW : Write 
-    Nybble(); //Clock lower 4 bits
-    i = i << 4; //Shift over by 4 bits
-    put_data(i); //put data on output Port
-    Nybble(); //Clock upper 4 bits 
-}
-
-// writes a string to the LCD
-
-void write_string(char *str) {
-    for (int i = 0; str[i] != '\0'; i++) {
-        write(str[i]);
-        delay_us(10);
-    }
-}
-
-// clears LCD
-
-void clear_LCD(void) {
-    command(0x00);
-    command(0x01);
-}
-
-void init_LCD(void) {
-    // set inputs
-    TRISBbits.TRISB7 = 0;
-    TRISBbits.TRISB8 = 0;
-    TRISBbits.TRISB9 = 0;
-    TRISBbits.TRISB15 = 0;
-    TRISBbits.TRISB12 = 0;
-    TRISBbits.TRISB13 = 0;
-    TRISBbits.TRISB14 = 0;
-
-    put_data(0);
-    for (int i = 0; i < 10; i++) { //Wait >40 msec after power is applied
-        delay_us(1000);
-    }
-    put_data(0x30); //put 0x30 on the output port
-    delay_us(5000); //must wait 5ms, busy flag not available
-    Nybble(); //command 0x30 = Wake up 
-    delay_us(160); //must wait 160us, busy flag not available
-    Nybble(); //command 0x30 = Wake up #2
-    delay_us(160); //must wait 160us, busy flag not available
-    Nybble(); //command 0x30 = Wake up #3
-    delay_us(160); //can check busy flag now instead of delay
-    put_data(0x20); //put 0x20 on the output port
-    Nybble(); //Function set: 4-bit interface
-    command(0x28); //Function set: 4-bit/2 -line
-    command(0x10); //Set cursor
-    command(0x0F); //Display ON; Blinking cursor
-    command(0x06); //Entry Mode set 
-}
-
-// RF functions
-
-void process_data(void) {
-
-    // count signals received
-    count++;
-
-    if (data == SAFETY) {
-        left_state = 0;
-        right_state = 0;
-        up_state = 0;
-        down_state = 0;
-//        clear_LCD();
-        LED5 = 1; // LED ON/Solenoid ON
-        LED1 = 0;
-        LED2 = 0;
-        LED3 = 0;
-        LED4= 0;
-       
-
-    }
-
-    if (data == LEFT) {
-        left_state = 1;
- 
-      
-        
-    }
-
-    if (data == RIGHT) {
-        right_state = 1;
-        
-      
-    }
-
-    if (data == UP) {
-        up_state = 1;
-
-
-    }
-
-    if (data == DOWN) {
-        down_state = 1;
-     
- 
-    }
-
-    // reset data complete flag
-    data_complete = 0;
-
-    // only update after 2 signals received
-    if (count == 2) {
-
-        // check if signals changed, if changed update LCD
-        if (previous_right_state != right_state) {
-            LED2 = right_state;
+    // Loop for sending 
+    for (i = 0; i < 32; i++) {
+        if (((number >> (31 - i)) & 1) == 1) {
+            one_bit();
+        } else {
+            zero_bit();
         }
-        if (previous_left_state != left_state) {
-            LED1 = left_state;
-        }
-        if (previous_down_state != down_state) {
-            LED4 = down_state;
-        }
-        if (previous_up_state != up_state) {
-            LED3 = up_state;
-        }
-     
-
-        // update previous states
-        previous_right_state = right_state;
-        previous_left_state = left_state;
-        previous_up_state = up_state;
-        previous_down_state = down_state;
-
-        // reset current states
-        left_state = 0;
-        right_state = 0;
-        up_state = 0;
-        down_state = 0;
-
-        // reset count
-        count = 0;
-    }
-}
-
-// Process signal received
-
-void process_signal(void) {
-
-    signal_received = 0;
-
-    if (state != 0) {
-        time = get_time1(); // Store Timer1 value
-        set_timer1(0); // Reset Timer1
     }
 
-    switch (state) {
-
-        case 0: // Start receiving IR data
-            T1CONbits.TON = 1; // start Timer1 
-            set_timer1(0); // Reset Timer1 value
-            state = 1; // go to state 1     
-            i = 0;
-            return;
-
-        case 1: // expected 4.5ms pulse
-            if ((time > 5000) || (time < 4000)) { // Invalid interval ==> stop decoding and reset
-                state = 0; // go back to state 0
-                T1CONbits.TON = 0; // Stop Timer1 
-            } else {
-                state = 2; // first 4.5ms pulse received, go to state 2
-            }
-            return;
-
-        case 2: // expected 4.5ms space
-            if ((time > 5000) || (time < 4000)) { // Invalid interval ==> stop decoding and reset
-                state = 0; // go back to state 0
-                T1CONbits.TON = 0; // Stop Timer1 
-                return;
-            }
-            state = 3; // Second 4.5ms space, go to state 3
-            return;
-
-        case 3: // expected 560?s pulse
-            if ((time > 700) || (time < 400)) { // Invalid interval ==> stop decoding and reset
-                state = 0; // go back to state 0
-                T1CONbits.TON = 0; // Disable Timer1 
-            } else {
-                state = 4; // 560?s pulse received, go to state 4
-            }
-            return;
-
-        case 4: // expected 560?s or 1680?s space
-            if ((time > 1800) || (time < 400)) { // Invalid interval ==> stop decoding and reset
-                state = 0; // go back to state 0
-                T1CONbits.TON = 0; // Disable Timer1 
-                return;
-            }
-
-            if (time > 1000) { // If space width > 1ms (1680us space)
-                set_bit((31 - i)); // Write 1 to bit (31 - i)
-            } else { // If space width < 1ms (560us space)
-                clear_bit((31 - i)); // Write 0 to bit (31 - i)
-            }
-
-            i++; // increment i
-
-            if (i > 31) { // if all bits are received, mark data as complete      
-                data_complete = 1;
-            }
-
-            state = 3; // go to state 3 to receive next bit
-            return;
-    }
+    zero_bit(); // end bit
 }
 
 int main(void) {
 
     // Analog ports to digital
-    //  AD1PCFG = 0xFFFF;
+  //    AD1PCFGH = 0xFFFF;
+//    ANSELA = 0;
+//    ANSELB = 0;
     ANSA = 0;
     ANSB = 0;
-    
-    //Solenoid PinOut LED IN ORDER UP-DOWN
-    TRISBbits.TRISB1 = 0; //LED 1
-    TRISBbits.TRISB2 = 0; // LED2 
-    TRISAbits.TRISA2 = 0; //LED 3
-    TRISBbits.TRISB0 = 0; // LED 4
-    TRISBbits.TRISB4 = 0; // LED 5
-    
-    //LATAbits.LATA2 = 1;
 
     // Nesting OFF
-    INTCON1bits.NSTDIS = 1;
+    //   INTCON1bits.NSTDIS = 1;
 
-    // set clock to 8MHz
     NewClk(8);
 
-    // set RA4 as input for the RF receiver, and enable interrupt
-    TRISAbits.TRISA4 = 1;
-    IEC1bits.CNIE = 1;
-    CNEN1bits.CN0IE = 1;
-    IPC4bits.CNIP = 0b111;
+    init_timer();
+    init_buttons();
 
-    // init timers
-    init_timer1();
-    init_timer2();
-    init_timer3();
+    // set A4 as input for the RF transmitter 
+    TRISAbits.TRISA4 = 0;
+    
+    // DEBUG LED
+   // TRISAbits.TRISA4 = 0;
+    
+ //  TRISAbits.TRISA3 = 0;
+  // LATAbits.LATA3 = 1; // LED ON/Solenoid ON
 
-    // init LCD
-    //init_LCD();
 
     while (1) {
-//         write_string("up ");
+     //   LATAbits.LATA2 = 1; // LED ON/Solenoid ON
 
-        // process signal
-        if (signal_received) {
-            process_signal();
 
-            // Reset timer used for timeout
-            //TMR4 = 0;
-            //T4CONbits.TON = 1;
-        }
+//        while (B1 == 0 || B2 == 0 || B3 == 0 || B4 == 0 || B5 == 0) {
+            if (B1 == 0) {  //if before
+                send_signal(LEFT);
+                delay_us(5000);
 
-        if (data_complete) {
-            process_data();
+            }
 
-            // start timer for timeout, if no data received before timeout then timeout_reached = 1
-            TMR4 = 0;
-            T4CONbits.TON = 1;
-        }
+            if (B2 == 0) {
+                send_signal(RIGHT);
+                delay_us(5000);
+            }
 
-        // no signal received, timeout reached 
-        if (timeout_reached) {
-            //clear LCD 
-//            clear_LCD();
+            if (B3 == 0) {
+                send_signal(UP);
+                delay_us(5000);
+            }
 
-            // Reset States
-            up_state = 0;
-            down_state = 0;
-            left_state = 0;
-            right_state = 0;
+            if (B4 == 0) {
+                send_signal(DOWN);
+                delay_us(5000);
+            }
+
+            if (B5 == 0) {
+                send_signal(SAFETY);
+                delay_us(5000);
+            }
+
             
-            LED1 = 0;
-            LED2 = 0;
-            LED3 = 0;
-            LED4 = 0;
-     
-
-            previous_right_state = 0;
-            previous_left_state = 0;
-            previous_up_state = 0;
-            previous_down_state = 0;
-
-            T4CONbits.TON = 0;
-            timeout_reached = 0;
         }
-    }
+
+   // }
     return 0;
 }
 
-void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void) {
-    signal_received = 1;
-    IFS1bits.CNIF = 0;
-}
-
-// interrupt happens when timer hits 5ms: receiver is idle, reset state to 0 
+// timer1 interrupt function
 
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
-    state = 0;
+    IFS0bits.T1IF = 0; //Clear timer 2 interrupt flag
     T1CONbits.TON = 0;
-    IFS0bits.T1IF = 0; //Clear timer 1 interrupt flag
 }
 
-void __attribute__((interrupt, no_auto_psv)) _T2Interrupt(void) {
-    // timer2_count++;
-    T2CONbits.TON = 0;
-    IFS0bits.T2IF = 0; //Clear timer 2 interrupt flag
-}
 
-void __attribute__((interrupt, no_auto_psv)) _T4Interrupt(void) {
-    timeout_reached = 1;
-    TMR4 = 0;
-    IFS1bits.T4IF = 0; //Clear timer 3 interrupt flag
-}
+
