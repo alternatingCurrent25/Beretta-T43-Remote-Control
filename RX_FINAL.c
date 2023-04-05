@@ -68,49 +68,6 @@
 
 #include "ChangeClk.h"
 
-//// CONFIGURATION BITS ////
-
-// Code protection 
-//#pragma config BSS = OFF // Boot segment code protect disabled
-//#pragma config BWRP = OFF // Boot sengment flash write protection off
-//#pragma config GCP = OFF // general segment code protecion off
-//#pragma config GWRP = OFF
-////
-//// CLOCK CONTROL 
-//#pragma config IESO = OFF    // 2 Speed Startup disabled
-//#pragma config FNOSC = FRC  // Start up CLK = 8 MHz
-//#pragma config FCKSM = CSECMD // Clock switching is enabled, clock monitor disabled
-//#pragma config SOSCSEL = SOSCLP // Secondary oscillator for Low Power Operation
-//#pragma config POSCFREQ = MS  //Primary Oscillator/External clk freq betwn 100kHz and 8 MHz. Options: LS, MS, HS
-//#pragma config OSCIOFNC = ON  //CLKO output disabled on pin 8, use as IO. 
-//#pragma config POSCMOD = NONE  // Primary oscillator mode is disabled
-////
-//// WDT
-//#pragma config FWDTEN = OFF // WDT is off
-//#pragma config WINDIS = OFF // STANDARD WDT/. Applicable if WDT is on
-//#pragma config FWPSA = PR32 // WDT is selected uses prescaler of 32
-//#pragma config WDTPS = PS1 // WDT postscler is 1 if WDT selected
-//
-//// MCLR/RA5 CONTROL
-////#pragma config MCLRE = OFF // RA5 pin configured as input, MCLR reset on RA5 diabled
-////
-//// BOR  - FPOR Register
-//#pragma config BORV = LPBOR // LPBOR value=2V is BOR enabled
-//#pragma config BOREN = BOR0 // BOR controlled using SBOREN bit
-//#pragma config PWRTEN = OFF // Powerup timer disabled
-//#pragma config I2C1SEL = PRI // Default location for SCL1/SDA1 pin
-////
-//// JTAG FICD Register
-////#pragma config BKBUG = OFF // Background Debugger functions disabled
-//#pragma config ICS = PGx2 // PGC2 (pin2) & PGD2 (pin3) are used to connect PICKIT3 debugger
-//
-// Deep Sleep RTCC WDT
-//#pragma config DSWDTEN = OFF // Deep Sleep WDT is disabled
-//#pragma config DSBOREN = OFF // Deep Sleep BOR is disabled
-//#pragma config RTCOSC = LPRC// RTCC uses LPRC 32kHz for clock
-//#pragma config DSWDTOSC = LPRC // DeepSleep WDT uses Lo Power RC clk
-//#pragma config DSWDTPS = DSWDTPS7 // DSWDT postscaler set to 32768 
-
 // MACROS
 #define Nop() {__asm__ volatile ("nop");}
 #define ClrWdt() {__asm__ volatile ("clrwdt");}
@@ -166,7 +123,7 @@ uint8_t previous_right_state = 0;
 uint8_t signal_received = 0;
 uint8_t timeout_reached = 0;
 
-void init_timer3(void) {
+void init_timer4(void) {
     T4CONbits.TON = 0; // Disable Timer1
     T4CONbits.TCS = 0; // Select internal clock source
     T4CONbits.TCKPS = 0b10; // Set prescaler to 1:8
@@ -482,52 +439,48 @@ void process_signal(void) {
     }
 }
 
-int main(void) {
-
-    // Analog ports to digital
-    //  AD1PCFG = 0xFFFF;
-    ANSA = 0;
-    ANSB = 0;
-    
+init_pins(void){
     //Solenoid PinOut LED IN ORDER UP-DOWN
-    TRISBbits.TRISB1 = 0; //LED 1
+    TRISBbits.TRISB1 = 0; // LED 1
     TRISBbits.TRISB2 = 0; // LED2 
-    TRISAbits.TRISA2 = 0; //LED 3
+    TRISAbits.TRISA2 = 0; // LED 3
     TRISBbits.TRISB0 = 0; // LED 4
     TRISBbits.TRISB4 = 0; // LED 5
     
-    //LATAbits.LATA2 = 1;
+    // set RA4 as input for the RF receiver, and enable interrupt
+    TRISAbits.TRISA4 = 1;
+    IEC1bits.CNIE = 1;
+    CNEN1bits.CN0IE = 1;
+    IPC4bits.CNIP = 0b111;
+}
 
+int main(void) {
+
+    // Analog ports to digital
+    ANSA = 0;
+    ANSB = 0;
+    
     // Nesting OFF
     INTCON1bits.NSTDIS = 1;
 
     // set clock to 8MHz
     NewClk(8);
 
-    // set RA4 as input for the RF receiver, and enable interrupt
-    TRISAbits.TRISA4 = 1;
-    IEC1bits.CNIE = 1;
-    CNEN1bits.CN0IE = 1;
-    IPC4bits.CNIP = 0b111;
-
     // init timers
     init_timer1();
     init_timer2();
-    init_timer3();
-
+    init_timer4();
+    
+    init_pins();
+    
     // init LCD
     //init_LCD();
 
     while (1) {
-//         write_string("up ");
 
         // process signal
         if (signal_received) {
             process_signal();
-
-            // Reset timer used for timeout
-            //TMR4 = 0;
-            //T4CONbits.TON = 1;
         }
 
         if (data_complete) {
@@ -554,7 +507,6 @@ int main(void) {
             LED3 = 0;
             LED4 = 0;
      
-
             previous_right_state = 0;
             previous_left_state = 0;
             previous_up_state = 0;
