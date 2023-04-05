@@ -519,27 +519,29 @@ int main(void) {
     return 0;
 }
 
+// CN interrupt, signal received on transmitter
 void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void) {
     signal_received = 1;
     IFS1bits.CNIF = 0;
 }
 
-// interrupt happens when timer hits 5ms: receiver is idle, reset state to 0 
 
+// Timer 1 interrupt, reset state to 0
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
     state = 0;
     T1CONbits.TON = 0;
     IFS0bits.T1IF = 0; //Clear timer 1 interrupt flag
 }
 
+// timer 2 interrupt, used for delay function
 void __attribute__((interrupt, no_auto_psv)) _T2Interrupt(void) {
-    // timer2_count++;
     T2CONbits.TON = 0;
     IFS0bits.T2IF = 0; //Clear timer 2 interrupt flag
 }
 
+// Timer 4 interrupt, no signal received in 5000us timeout reached
 void __attribute__((interrupt, no_auto_psv)) _T4Interrupt(void) {
     timeout_reached = 1;
     TMR4 = 0;
-    IFS1bits.T4IF = 0; //Clear timer 3 interrupt flag
+    IFS1bits.T4IF = 0; //Clear timer 4 interrupt flag
 }
