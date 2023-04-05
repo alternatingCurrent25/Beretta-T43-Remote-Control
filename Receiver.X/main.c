@@ -7,7 +7,6 @@
 
 #include "xc.h"
 #include <p24fxxxx.h>
-#include <p24FV32KA3001.h>
 #include <stdio.h>
 #include <math.h>
 #include <errno.h>
