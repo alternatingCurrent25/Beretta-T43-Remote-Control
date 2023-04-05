@@ -7,7 +7,7 @@
 
 #include "xc.h"
 #include <p24fxxxx.h>
-#include <p24F16KA101.h>
+#include <p24FV32KA3001.h>
 #include <stdio.h>
 #include <math.h>
 #include <errno.h>
@@ -373,17 +373,17 @@ void process_signal(void){
             state = 3;                             // Second 4.5ms space, go to state 3
             return;
             
-        case 3 :                                     // expected 560µs pulse
+        case 3 :                                     // expected 560Âµs pulse
             if((time > 700) || (time < 400)){        // Invalid interval ==> stop decoding and reset
                 state = 0;                      // go back to state 0
                 T1CONbits.TON = 0;              // Disable Timer1 
             }
             else{
-                state = 4;                       // 560µs pulse received, go to state 4
+                state = 4;                       // 560Âµs pulse received, go to state 4
             }
             return;
             
-        case 4 :                                     // expected 560µs or 1680µs space
+        case 4 :                                     // expected 560Âµs or 1680Âµs space
             if((time > 1800) || (time < 400)){       // Invalid interval ==> stop decoding and reset
                 state = 0;                      // go back to state 0
                 T1CONbits.TON = 0;              // Disable Timer1 
