@@ -295,39 +295,35 @@ void process_data(void) {
         right_state = 0;
         up_state = 0;
         down_state = 0;
-//        clear_LCD();
-        LED5 = 1; // LED ON/Solenoid ON
+        
+        // Disable receiving
+        // IEC1bits.CNIE = 0;
+        
+        // clear_LCD();
+        
+        LED5 = 1; // Safety LED ON
+        
+        // Switch off LEDs/Solenoids
         LED1 = 0;
         LED2 = 0;
         LED3 = 0;
-        LED4= 0;
-       
-
+        LED4 = 0;
     }
 
     if (data == LEFT) {
-        left_state = 1;
- 
-      
-        
+        left_state = 1; 
     }
 
     if (data == RIGHT) {
         right_state = 1;
-        
-      
     }
 
     if (data == UP) {
         up_state = 1;
-
-
     }
 
     if (data == DOWN) {
         down_state = 1;
-     
- 
     }
 
     // reset data complete flag
@@ -353,9 +349,9 @@ void process_data(void) {
 
         // update previous states
         previous_right_state = right_state;
-        previous_left_state = left_state;
-        previous_up_state = up_state;
-        previous_down_state = down_state;
+        previous_left_state  = left_state;
+        previous_up_state    = up_state;
+        previous_down_state  = down_state;
 
         // reset current states
         left_state = 0;
